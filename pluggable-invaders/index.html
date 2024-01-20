@@ -1,0 +1,29 @@
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pluggable Invaders</title>
+    <style>
+        body {
+            all: unset;
+        }
+
+        #gamearea {
+            background-color: black;
+            color: green;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="gamearea" width="224" height="256"></canvas>
+    <button id="start">Start Game</button>
+    <button id="pause">Pause</button>
+    <button id="resume">Resume</button>
+    <script src="src/game.js"></script>
+    <script src="src/renderers/html.js"></script>
+</body>
+
+</html>
