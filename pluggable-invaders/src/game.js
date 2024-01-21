@@ -159,8 +159,17 @@ class Game {
     }
   }
 
+  #interval = 1000 / 60;
+  #lastFrame = 0;
+  #delta = 0;
+
   mainLoop() {
-    if (this.running && !this.invadersState.invaded && !this.invadersState.allDead) {
+    const now = performance.now();
+    const run = now - this.#lastFrame >= this.#interval - this.#delta;
+    if (run && this.running && !this.invadersState.invaded && !this.invadersState.allDead) {
+      this.#lastFrame = now;
+      this.delta = Math.min(this.#interval, this.#delta + now - this.#lastFrame - this.#interval);
+
       let deadInvader;
 
       if (this.invadersState.invaders.length < 55) {
@@ -213,7 +222,7 @@ class Game {
       renderer.initialise(this.playerState);
     });
     this.running = true;
-    this.raf = window.requestAnimationFrame(this.mainLoop.bind(this));
+    this.mainLoop();
   }
 
   pause() {
