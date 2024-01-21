@@ -18,7 +18,7 @@ const invaderYIncrement = 8;
 class InvadersState {
   score = 0;
   level = 1;
-  currentInvader = -1;
+  currentInvaderIndex = -1;
   referenceX = startX;
   referenceY = startY;
   invaders = [];
@@ -38,11 +38,11 @@ class InvadersState {
   moveDirection = 0;
 
   incrementCurrentInvader() {
-    let newCurrentInvader = this.currentInvader + 1;
+    let newCurrentInvaderIndex = this.currentInvaderIndex + 1;
 
-    if (newCurrentInvader === 55) {
+    if (newCurrentInvaderIndex === 55) {
       // Reset to the reference invader
-      newCurrentInvader = 0;
+      newCurrentInvaderIndex = 0;
 
       // We've now processed all the invaders, so if they are meant to be advancing to
       // the next row - start!
@@ -57,20 +57,20 @@ class InvadersState {
       this.invaded = this.triggerInvaded;
     }
 
-    this.currentInvader = newCurrentInvader;
+    this.currentInvaderIndex = newCurrentInvaderIndex;
 
-    return this.invaders[this.currentInvader];
+    return this.invaders[this.currentInvaderIndex];
   }
 
   initialiseInvaders() {
-    this.currentInvader = this.currentInvader + 1;
+    this.currentInvaderIndex = this.currentInvaderIndex + 1;
 
     // Initialising - no movement
     this.invaders.push({
       id: this.invaders.length,
-      type: Math.floor(this.currentInvader / 11),
-      x: this.referenceX + ((this.currentInvader % 11) * (invaderWidth + invaderXGap)),
-      y: this.referenceY - ((Math.floor(this.currentInvader / 11)) * (invaderHeight + invaderYGap)),
+      type: Math.floor(this.currentInvaderIndex / 11),
+      x: this.referenceX + ((this.currentInvaderIndex % 11) * (invaderWidth + invaderXGap)),
+      y: this.referenceY - ((Math.floor(this.currentInvaderIndex / 11)) * (invaderHeight + invaderYGap)),
       dead: false,
     });
   }
@@ -101,15 +101,15 @@ class InvadersState {
       this.advancing = true;
     }
 
-    const newY = this.referenceY - ((Math.floor(this.currentInvader / 11)) * (invaderHeight + invaderYGap));
+    const newY = this.referenceY - ((Math.floor(this.currentInvaderIndex / 11)) * (invaderHeight + invaderYGap));
     this.triggerInvaded |= newY === 216;
-    this.invaders[this.currentInvader].y = newY;
+    this.invaders[this.currentInvaderIndex].y = newY;
 
     // Only increment the X invader position if they aren't advancing (moving 1 row down the screen)
     if (!this.advancing) {
-      this.invaders[this.currentInvader].x += (invaderXIncrement * this.direction);
+      this.invaders[this.currentInvaderIndex].x += (invaderXIncrement * this.direction);
 
-      if (this.invaders[this.currentInvader].x <= 8 || this.invaders[this.currentInvader].x >= 200) {
+      if (this.invaders[this.currentInvaderIndex].x <= 8 || this.invaders[this.currentInvaderIndex].x >= 200) {
         // Once we've updated all the invaders in a cycle, trigger an advance
         this.willAdvance = true;
       }
@@ -131,13 +131,6 @@ class PlayerState {
       if (this.playerShotY < 0) {
         this.playerShotFired = false;
       }
-
-      // this.skipframes++;
-      // if (this.skipframes == 10) {
-      //   this.playerShotFrame++;
-      //   this.playerShotFrame = (this.playerShotFrame % 3) + 1;
-      //   this.skipframes = 0;
-      // }
     }
   }
 }
@@ -162,15 +155,14 @@ class Game {
   #interval = 1000 / 60;
   #lastFrame = 0;
   #delta = 0;
+  #hitInvader;
 
   mainLoop() {
     const now = performance.now();
     const run = now - this.#lastFrame >= this.#interval - this.#delta;
-    if (run && this.running && !this.invadersState.invaded && !this.invadersState.allDead) {
+    if (run && this.running && !this.invadersState.invaded && !this.invadersState.allDead) {      
       this.#lastFrame = now;
       this.delta = Math.min(this.#interval, this.#delta + now - this.#lastFrame - this.#interval);
-
-      let deadInvader;
 
       if (this.invadersState.invaders.length < 55) {
         this.invadersState.initialiseInvaders();
@@ -181,21 +173,12 @@ class Game {
         this.updatePlayer();
         this.invadersState.updateInvaders();
         this.playerState.updateplayerShot();
-        // For now - randomly simulate invaders being shot
-        if (Math.random() > 0.85) {
-          deadInvader = Math.floor(Math.random() * 55);
-          this.invadersState.invaders[deadInvader].dead = true;
-          this.invadersState.allDead = this.invadersState.invaders.find((invader) => !invader.dead) === undefined;
-        }
       }
 
       this.renderers.forEach((renderer) => {
-        if (deadInvader >= 0) {
-          renderer.renderInvader({ invader: this.invadersState.invaders[deadInvader] });
-        }
         renderer.renderBases(this.invadersState);
         renderer.renderSaucer({ saucerX: this.invadersState.saucerX });
-        renderer.renderInvader({ invader: this.invadersState.invaders[this.invadersState.currentInvader], animationStep: this.invadersState.animateStep });
+        renderer.renderInvader({ invader: this.invadersState.invaders[this.invadersState.currentInvaderIndex], animationStep: this.invadersState.animateStep });
         renderer.renderPlayer({ playerX: this.invadersState.playerX });
         if (renderer.renderPlayerShot({
           playerShotX: this.playerState.playerShotX,
@@ -203,7 +186,17 @@ class Game {
           playerShotFrame: this.playerState.playerShotFrame,
           playerShotFired: this.playerState.playerShotFired
         })) {
-          console.log('Player shot hit something!');
+          this.#hitInvader = this.invadersState.invaders.find((invader) => {
+            const left = invader.x;
+            const right = invader.x + 16;
+            const top = invader.y;
+            const bottom = invader.y + 8;
+            return !invader.dead && this.playerState.playerShotX >= left && this.playerState.playerShotX < right && this.playerState.playerShotY >= top && this.playerState.playerShotY < bottom;
+          });
+          if (this.#hitInvader) {
+            this.#hitInvader.dead = true;
+            renderer.renderInvader({ invader: this.#hitInvader, animationStep: this.invadersState.animateStep });
+          }
           this.playerState.playerShotFired = false;
         }
       });

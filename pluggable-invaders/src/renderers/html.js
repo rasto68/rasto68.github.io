@@ -63,13 +63,16 @@ class HtmlRenderer {
 
   #drawSprite(name, x, y, id = name ) {
     const sprite = spriteImages.get(name);
+    // Get the contents of the screen where we are about to draw the sprite
     const currentState = HtmlRenderer.normalizeSRGB(this.#gamearea.getImageData(x, y, sprite.width, sprite.height).data);
     this.#clearSprite(id);
     this.#gamearea.globalCompositingOperation = 'source-over';
     this.#gamearea.drawImage(sprite, x, y);
+    // Get the contents of the screen after drawing the sprite
     const newState = HtmlRenderer.normalizeSRGB(this.#gamearea.getImageData(x, y, sprite.width, sprite.height).data);
     this.#oldSprites.set(id, {name, x, y});
 
+    // Compare the pixels, if there are more set than our sprite contains then we have a collision
     const collision = currentState.map((current, index) => current && newState[index]).find((value) => value > 0);
     return collision;
   }
@@ -81,7 +84,7 @@ class HtmlRenderer {
   }
 
   renderInvader({ invader, animationStep }) {
-    const { x, y, type, dead, id } = invader;
+    const { x, y, type, dead, hit, id } = invader;
 
     if (dead) {
       this.#clearSprite(id);
@@ -102,7 +105,7 @@ class HtmlRenderer {
       }
 
       invaderSprite = `${invaderSprite}${animationStep ? 1 : 2}`;
-      this.#drawSprite(invaderSprite, x, y, id);
+      this.#drawSprite(hit ? 'alienExplode' : invaderSprite, x, y, id);
     }
   }
 
