@@ -41,10 +41,13 @@ Object.entries(sprites).map(([sprite, asset]) => {
 
 class HtmlRenderer {
   #gamearea;
+  #overlay;
   #oldSprites = new Map();
 
   initialise() {
     this.#gamearea = document.getElementById('gamearea').getContext('2d', { willReadFrequently: true });
+    this.#overlay = document.getElementById('overlay').getContext('2d', { willReadFrequently: true });
+    this.#overlay.fillStyle = 'rgba(0,255,0,0.5)';
   }
 
   #clearSprite(id) {
@@ -125,6 +128,15 @@ class HtmlRenderer {
     } else {
       this.#clearSprite('playerShot');
     }
+  }
+
+  renderOverlay() {
+    // Commented out for now until I can figure out how to make the overlay only show for 'white' pixels
+    // https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/globalCompositeOperation
+    // const gameBackground = this.#gamearea.getImageData(0, 192, 224, 64);
+    // this.#overlay.globalCompositeOperation = 'source-in';
+    // this.#overlay.putImageData(gameBackground, 0, 0);
+    // this.#overlay.fillRect(0, 0, 224, 64);
   }
 }
 

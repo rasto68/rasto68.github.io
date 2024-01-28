@@ -12,13 +12,19 @@
 
         #gamearea {
             background-color: black;
-            color: green;
+        }
+
+        #overlay {
+            position: absolute;
+            top: 192;
+            left: 0;
         }
     </style>
 </head>
 
 <body>
     <canvas id="gamearea" width="224" height="256"></canvas>
+    <canvas id="overlay" width="224" height="64"></canvas>
     <button id="start">Start Game</button>
     <button id="pause">Pause</button>
     <button id="resume">Resume</button>

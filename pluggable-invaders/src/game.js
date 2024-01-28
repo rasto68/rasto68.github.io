@@ -15,30 +15,23 @@ const invaderXIncrement = 2;
 // How many pixels down the invader moves when the play area edge is reached
 const invaderYIncrement = 8;
 
-class InvadersState {
-  score = 0;
-  level = 1;
-  currentInvaderIndex = -1;
-  referenceX = startX;
-  referenceY = startY;
+class Invaders {
+  #currentInvaderIndex = -1;
+  #referenceX = startX;
+  #referenceY = startY;
+  #direction = 1;
+  #willAdvance = false;
+  #startAdvance = false;
+  #advancing = false;
+  #triggerInvaded = false;
+  #animateStep = true;
+  #saucerX = 8; // undefined = no saucer visible
   invaders = [];
-  direction = 1;
-  willAdvance = false;
-  startAdvance = false;
-  advancing = false;
-  hadFullInvadersCycle = false;
-  triggerInvaded = false;
   invaded = false;
   allDead = false;
-  animateStep = true;
-  saucerX = 8; // undefined = no saucer visible
-  playerX = 8;
-  leftDown = false;
-  rightDown = false;
-  moveDirection = 0;
 
   incrementCurrentInvader() {
-    let newCurrentInvaderIndex = this.currentInvaderIndex + 1;
+    let newCurrentInvaderIndex = this.#currentInvaderIndex + 1;
 
     if (newCurrentInvaderIndex === 55) {
       // Reset to the reference invader
@@ -46,31 +39,31 @@ class InvadersState {
 
       // We've now processed all the invaders, so if they are meant to be advancing to
       // the next row - start!
-      this.startAdvance = this.willAdvance;
-      this.willAdvance = false;
-      this.advancing = false;
+      this.#startAdvance = this.#willAdvance;
+      this.#willAdvance = false;
+      this.#advancing = false;
 
       // Switch the animation each time a cycle completes
-      this.animateStep = !this.animateStep;
+      this.#animateStep = !this.#animateStep;
 
       // Processed all the invaders so if any have 'invaded' then time for the player to die
-      this.invaded = this.triggerInvaded;
+      this.invaded = this.#triggerInvaded;
     }
 
-    this.currentInvaderIndex = newCurrentInvaderIndex;
+    this.#currentInvaderIndex = newCurrentInvaderIndex;
 
-    return this.invaders[this.currentInvaderIndex];
+    return this.invaders[this.#currentInvaderIndex];
   }
 
   initialiseInvaders() {
-    this.currentInvaderIndex = this.currentInvaderIndex + 1;
+    this.#currentInvaderIndex = this.#currentInvaderIndex + 1;
 
     // Initialising - no movement
     this.invaders.push({
       id: this.invaders.length,
-      type: Math.floor(this.currentInvaderIndex / 11),
-      x: this.referenceX + ((this.currentInvaderIndex % 11) * (invaderWidth + invaderXGap)),
-      y: this.referenceY - ((Math.floor(this.currentInvaderIndex / 11)) * (invaderHeight + invaderYGap)),
+      type: Math.floor(this.#currentInvaderIndex / 11),
+      x: this.#referenceX + ((this.#currentInvaderIndex % 11) * (invaderWidth + invaderXGap)),
+      y: this.#referenceY - ((Math.floor(this.#currentInvaderIndex / 11)) * (invaderHeight + invaderYGap)),
       dead: false,
     });
   }
@@ -84,6 +77,7 @@ class InvadersState {
     });
 
     if (liveInvaders === 0) {
+      this.allDead = true;
       return;
     }
 
@@ -94,111 +88,168 @@ class InvadersState {
       return;
     }
 
-    if (this.startAdvance) {
-      this.direction = this.direction * -1;
-      this.referenceY += invaderYIncrement;
-      this.startAdvance = false;
-      this.advancing = true;
+    if (this.#startAdvance) {
+      this.#direction = this.#direction * -1;
+      this.#referenceY += invaderYIncrement;
+      this.#startAdvance = false;
+      this.#advancing = true;
     }
 
-    const newY = this.referenceY - ((Math.floor(this.currentInvaderIndex / 11)) * (invaderHeight + invaderYGap));
-    this.triggerInvaded |= newY === 216;
-    this.invaders[this.currentInvaderIndex].y = newY;
+    const newY = this.#referenceY - ((Math.floor(this.#currentInvaderIndex / 11)) * (invaderHeight + invaderYGap));
+    this.#triggerInvaded |= newY === 216;
+    this.invaders[this.#currentInvaderIndex].y = newY;
 
     // Only increment the X invader position if they aren't advancing (moving 1 row down the screen)
-    if (!this.advancing) {
-      this.invaders[this.currentInvaderIndex].x += (invaderXIncrement * this.direction);
+    if (!this.#advancing) {
+      this.invaders[this.#currentInvaderIndex].x += (invaderXIncrement * this.#direction);
 
-      if (this.invaders[this.currentInvaderIndex].x <= 8 || this.invaders[this.currentInvaderIndex].x >= 200) {
+      if (this.invaders[this.#currentInvaderIndex].x <= 8 || this.invaders[this.#currentInvaderIndex].x >= 200) {
         // Once we've updated all the invaders in a cycle, trigger an advance
-        this.willAdvance = true;
+        this.#willAdvance = true;
       }
     }
   }
+
+  render(renderer) {
+    renderer.renderSaucer({ saucerX: this.#saucerX });
+    renderer.renderInvader({ invader: this.invaders[this.#currentInvaderIndex], animationStep: this.#animateStep });
+  }
 }
 
-class PlayerState {
-  playerShotFired = false;
-  playerShotY = startY;
-  playerShotX = startX;
-  // skipframes = 0;
-  // playerShotFrame = 1;
+class Player {
+  #score = 0;
+  #level = 1;
+  #playerShotFired = false;
+  #playerShotX;
+  #playerShotY;
+  #playerX = 8;
+  #leftDown = false;
+  #rightDown = false;
+  #moveDirection = 0;
+
+  updatePlayer() {
+    const newPosition = this.#playerX + this.#moveDirection;
+    if (newPosition >= 8 && newPosition <=200) {
+      this.#playerX = newPosition;
+    }
+  }
 
   updateplayerShot() {
-    if (this.playerShotFired) {
+    if (this.#playerShotFired) {
       // See https://www.computerarcheology.com/Arcade/SpaceInvaders/#game-object-1-movedraw-players-shot
-      this.playerShotY -= 4;
-      if (this.playerShotY < 0) {
-        this.playerShotFired = false;
+      this.#playerShotY -= 4;
+      if (this.#playerShotY < 0) {
+        this.#playerShotFired = false;
       }
     }
+  }
+
+  moveLeft(down) {
+    this.#leftDown = down;
+    this.#moveDirection = 0;
+    if (down) {
+      this.#moveDirection = -1;
+    } else if (this.#rightDown) {
+      this.#moveDirection = 1;
+    }
+  }
+
+  moveRight(down) {
+    this.#rightDown = down;
+    this.#moveDirection = 0;
+    if (down) {
+      this.#moveDirection = 1;
+    } else if (this.#leftDown) {
+      this.#moveDirection = -1;
+    }
+  }
+
+  fire() {
+    if (!this.#playerShotFired) {
+      this.#playerShotFired = true;
+      this.#playerShotY = 216;
+      this.#playerShotX = this.#playerX + 8;
+    }
+  }
+
+  render(renderer) {
+    renderer.renderPlayer({ playerX: this.#playerX });
+  }
+
+  renderShot(renderer) {
+    if (renderer.renderPlayerShot({
+      playerShotX: this.#playerShotX,
+      playerShotY: this.#playerShotY,
+      playerShotFired: this.#playerShotFired
+    })) {
+      this.#playerShotFired = false;
+      return { hitx: this.#playerShotX, hity: this.#playerShotY };
+    }
+
+    return;
   }
 }
 
 class Game {
-  running = false;
-  renderers;
-  invadersState;
-  playerState;
-
-  constructor(renderers) {
-    this.renderers = renderers;
-  }
-
-  updatePlayer() {
-    const newPosition = this.invadersState.playerX + this.moveDirection;
-    if (newPosition >= 8 && newPosition <=200) {
-      this.invadersState.playerX = newPosition;
-    }
-  }
-
+  #running = false;
+  #renderers;
+  #invaders;
   #interval = 1000 / 60;
   #lastFrame = 0;
   #delta = 0;
   #hitInvader;
+  #addedBases;
+  player;
+
+  constructor(renderers) {
+    this.#renderers = renderers;
+  }
 
   mainLoop() {
     const now = performance.now();
     const run = now - this.#lastFrame >= this.#interval - this.#delta;
-    if (run && this.running && !this.invadersState.invaded && !this.invadersState.allDead) {      
+    if (run && this.#running && !this.#invaders.invaded && !this.#invaders.allDead) {      
       this.#lastFrame = now;
       this.delta = Math.min(this.#interval, this.#delta + now - this.#lastFrame - this.#interval);
 
-      if (this.invadersState.invaders.length < 55) {
-        this.invadersState.initialiseInvaders();
+      if (this.#invaders.invaders.length < 55) {
+        this.#invaders.initialiseInvaders();
       } else {
         // TBD
         // Need to add an initial delay before the player is drawn - not sure what this is, it feels like 2 seconds from
         // watching play on youtube but need to look at the original code to figure out what it really is
-        this.updatePlayer();
-        this.invadersState.updateInvaders();
-        this.playerState.updateplayerShot();
+        this.player.updatePlayer();
+        this.#invaders.updateInvaders();
+        this.player.updateplayerShot();
       }
 
-      this.renderers.forEach((renderer) => {
-        renderer.renderBases(this.invadersState);
-        renderer.renderSaucer({ saucerX: this.invadersState.saucerX });
-        renderer.renderInvader({ invader: this.invadersState.invaders[this.invadersState.currentInvaderIndex], animationStep: this.invadersState.animateStep });
-        renderer.renderPlayer({ playerX: this.invadersState.playerX });
-        if (renderer.renderPlayerShot({
-          playerShotX: this.playerState.playerShotX,
-          playerShotY: this.playerState.playerShotY,
-          playerShotFrame: this.playerState.playerShotFrame,
-          playerShotFired: this.playerState.playerShotFired
-        })) {
-          this.#hitInvader = this.invadersState.invaders.find((invader) => {
+      this.#renderers.forEach((renderer) => {
+        if (!this.#addedBases) {
+          renderer.renderBases(this.#invaders);
+          this.#addedBases = true;
+        }
+
+        this.#invaders.render(renderer);
+
+        this.player.render(renderer);
+
+        const hit = this.player.renderShot(renderer);
+        if (hit) {
+          const { hitx, hity } = hit;
+          this.#hitInvader = this.#invaders.invaders.find((invader) => {
             const left = invader.x;
             const right = invader.x + 16;
             const top = invader.y;
             const bottom = invader.y + 8;
-            return !invader.dead && this.playerState.playerShotX >= left && this.playerState.playerShotX < right && this.playerState.playerShotY >= top && this.playerState.playerShotY < bottom;
+            return !invader.dead && hitx >= left && hitx < right && hity >= top && hity < bottom;
           });
           if (this.#hitInvader) {
             this.#hitInvader.dead = true;
-            renderer.renderInvader({ invader: this.#hitInvader, animationStep: this.invadersState.animateStep });
+            renderer.renderInvader({ invader: this.#hitInvader, animationStep: this.#invaders.animateStep });
           }
-          this.playerState.playerShotFired = false;
         }
+
+        renderer.renderOverlay();
       });
     }
     this.raf = window.requestAnimationFrame(this.mainLoop.bind(this));
@@ -208,50 +259,22 @@ class Game {
     if (this.raf) {
       window.cancelAnimationFrame(this.raf);
     }
-    this.invadersState = new InvadersState();
-    this.playerState = new PlayerState();
-    this.renderers.forEach((renderer) => {
-      renderer.initialise(this.invadersState);
-      renderer.initialise(this.playerState);
+    this.#invaders = new Invaders();
+    this.player = new Player();
+    this.#renderers.forEach((renderer) => {
+      renderer.initialise(this.#invaders);
+      renderer.initialise(this.player);
     });
-    this.running = true;
+    this.#running = true;
     this.mainLoop();
   }
 
   pause() {
-    this.running = false;
+    this.#running = false;
   }
 
   resume() {
-    this.running = true;
-  }
-
-  playerLeft(down) {
-    this.leftDown = down;
-    this.moveDirection = 0;
-    if (down) {
-      this.moveDirection = -1;
-    } else if (this.rightDown) {
-      this.moveDirection = 1;
-    }
-  }
-
-  playerRight(down) {
-    this.rightDown = down;
-    this.moveDirection = 0;
-    if (down) {
-      this.moveDirection = 1;
-    } else if (this.leftDown) {
-      this.moveDirection = -1;
-    }
-  }
-
-  playerFire() {
-    if (!this.playerState.playerShotFired) {
-      this.playerState.playerShotFired = true;
-      this.playerState.playerShotY = 216;
-      this.playerState.playerShotX = this.invadersState.playerX + 8;
-    }
+    this.#running = true;
   }
 }
 
@@ -273,13 +296,13 @@ document.getElementById('resume').addEventListener('click', () => {
 window.addEventListener('keydown', (e) => {
   switch (e.key) {
   case 'ArrowLeft':
-    game.playerLeft(true);
+    game.player.moveLeft(true);
     break;
   case 'ArrowRight':
-    game.playerRight(true);
+    game.player.moveRight(true);
     break;
   case 'ArrowUp':
-    game.playerFire();
+    game.player.fire();
     break;
   }
 });
@@ -287,10 +310,10 @@ window.addEventListener('keydown', (e) => {
 window.addEventListener('keyup', (e) => {
   switch (e.key) {
   case 'ArrowLeft':
-    game.playerLeft(false);
+    game.player.moveLeft(false);
     break;
   case 'ArrowRight':
-    game.playerRight(false);
+    game.player.moveRight(false);
     break;
   }
 });
